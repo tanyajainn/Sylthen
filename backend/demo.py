@@ -1,3 +1,7 @@
+﻿import tkinter as tk
+from tkinter import messagebox
+from uuid import uuid4
+
 from backend.crypto.encryption import generate_key
 from backend.database.database import Database
 from backend.telemetry.secure_collector import SecureTelemetryCollector
@@ -6,70 +10,124 @@ from backend.detection.report import format_report
 
 
 def main():
-    print("=" * 50)
-    print("SYLTHEN — LAB TELEMETRY DEMO")
-    print("=" * 50)
-
     key = generate_key()
     database = Database()
 
     collector = SecureTelemetryCollector(
-        session_id="demo-session-001",
+        session_id=f"lab-{uuid4()}",
         key=key,
     )
 
-    events = [
-        (
-            "session_event",
-            {"state": "STARTED"},
-        ),
-        (
+    root = tk.Tk()
+    root.title("SYLTHEN — Keylogger Lab")
+    root.geometry("650x450")
+
+    tk.Label(
+        root,
+        text="SYLTHEN",
+        font=("Arial", 24, "bold"),
+    ).pack(pady=(25, 5))
+
+    tk.Label(
+        root,
+        text="Authorized Keylogger Simulation",
+        font=("Arial", 13),
+    ).pack()
+
+    tk.Label(
+        root,
+        text="Type ONLY in the box below. Events are encrypted and stored locally.",
+        wraplength=550,
+    ).pack(pady=20)
+
+    text_box = tk.Text(
+        root,
+        height=8,
+        width=65,
+        font=("Consolas", 12),
+    )
+    text_box.pack()
+
+    status = tk.Label(root, text="Ready")
+    status.pack(pady=10)
+
+    events = []
+
+    def record_key(event):
+        key_name = event.keysym
+
+        if len(key_name) == 1 and key_name.isalnum():
+            category = "ALPHANUMERIC"
+        elif key_name == "space":
+            category = "SPACE"
+        else:
+            category = "SPECIAL"
+
+        encrypted = collector.record(
             "key_event",
             {
-                "key_category": "ALPHANUMERIC",
+                "key_category": category,
                 "action": "DOWN",
                 "dwell_ms": 25,
             },
-        ),
-        (
-            "network_event",
-            {
-                "destination_type": "SIMULATED_C2",
-            },
-        ),
-        (
-            "focus_event",
-            {"state": "ACTIVE"},
-        ),
-    ]
+        )
 
-    print("\n[1] Generating lab telemetry...")
-
-    decrypted_events = []
-
-    for event_type, data in events:
-        encrypted = collector.record(event_type, data)
         event_id = database.insert_event(encrypted)
+        decrypted = collector.decrypt(encrypted)
+        events.append(decrypted)
 
-        decrypted_events.append(
-            collector.decrypt(encrypted)
+        status.config(
+            text=f"Captured lab event #{len(events)} → database ID {event_id}"
         )
 
-        print(
-            f"  ✓ {event_type:<20}"
-            f" encrypted → database ID {event_id}"
+    def analyze():
+        if not events:
+            messagebox.showinfo(
+                "SYLTHEN",
+                "Type something in the lab box first."
+            )
+            return
+
+        result = analyze_events(events)
+
+        print("\n" + "=" * 60)
+        print("SYLTHEN SECURITY ANALYSIS")
+        print("=" * 60)
+        print(f"Events analyzed: {len(events)}")
+        print()
+        print(format_report(result))
+
+        messagebox.showinfo(
+            "SYLTHEN Analysis",
+            f"Events analyzed: {len(events)}\n\n"
+            f"{format_report(result)}"
         )
 
-    print("\n[2] Running detection engine...")
+    def finish():
+        database.close()
+        root.destroy()
 
-    result = analyze_events(decrypted_events)
+    text_box.bind("<KeyPress>", record_key)
 
-    print(format_report(result))
+    tk.Button(
+        root,
+        text="Run Security Analysis",
+        command=analyze,
+        width=25,
+        height=2,
+    ).pack(pady=15)
 
-    database.close()
+    tk.Button(
+        root,
+        text="Exit",
+        command=finish,
+        width=15,
+    ).pack()
 
-    print("\nSYLTHEN CORE DEMO COMPLETE.")
-    print("=" * 50)
+    text_box.focus_set()
+    root.protocol("WM_DELETE_WINDOW", finish)
+
+    root.mainloop()
 
 
 if __name__ == "__main__":
