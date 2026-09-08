@@ -1,0 +1,41 @@
+# SYLTHEN
+
+## Ethical Spyware Simulation & Detection Framework
+
+SYLTHEN is a controlled cybersecurity research framework designed to simulate spyware-like telemetry in an authorized laboratory environment and demonstrate how suspicious behavioral patterns can be detected.
+
+The project focuses on the defensive side of spyware research: secure telemetry collection, authenticated encryption, encrypted evidence storage, rule-based detection, behavioral analysis, risk scoring, and security reporting.
+
+> **Safety Notice:** SYLTHEN is designed exclusively for authorized laboratory experimentation. It does not perform covert system-wide keylogging, credential capture, persistence, evasion, or unauthorized data collection.
+
+---
+
+## Architecture
+
+```text
+Authorized Lab Simulator
+        │
+        ▼
+Telemetry Collector
+        │
+        ▼
+AES-256-GCM Encryption
+        │
+        ▼
+Encrypted SQLite Storage
+        │
+        ▼
+Authorized Decryption
+        │
+        ▼
+Detection Engine
+        │
+        ├── Detection Rules
+        ├── Risk Scoring
+        └── Behavioral Analysis
+        │
+        ▼
+FastAPI REST API
+        │
+        ▼
+React + TypeScript Dashboard
