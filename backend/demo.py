@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from backend.crypto.encryption import generate_key
 from backend.database.database import Database
+from backend.telemetry.timing import KeyTiming
 from backend.telemetry.secure_collector import SecureTelemetryCollector
 from backend.detection.engine import analyze_events
 from backend.detection.report import format_report
@@ -53,25 +54,16 @@ def main():
 
     events = []
 
-    def record_key(event):
-        key_name = event.keysym
+    timing = KeyTiming()
 
-        if len(key_name) == 1 and key_name.isalnum():
-            category = "ALPHANUMERIC"
-        elif key_name == "space":
-            category = "SPACE"
-        else:
-            category = "SPECIAL"
+    def press(event):
+        timing.press(event.keycode, event.keysym, event.time)
 
-        encrypted = collector.record(
-            "key_event",
-            {
-                "key_category": category,
-                "action": "DOWN",
-                "dwell_ms": 25,
-            },
-        )
-
+    def release(event):
+        data = timing.release(event.keycode, event.time)
+        if data is None:
+            return
+        encrypted = collector.record("key_event", data)
         event_id = database.insert_event(encrypted)
         decrypted = collector.decrypt(encrypted)
         events.append(decrypted)
@@ -107,7 +99,9 @@ def main():
         database.close()
         root.destroy()
 
-    text_box.bind("<KeyPress>", record_key)
+    text_box.bind("<KeyPress>", press)
+    text_box.bind("<KeyRelease>", release)
+    text_box.bind("<FocusOut>", lambda event: timing.clear())
 
     tk.Button(
         root,
